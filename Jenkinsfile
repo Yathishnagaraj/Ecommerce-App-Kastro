@@ -100,16 +100,20 @@ pipeline {
         }
         stage('Deploy To Kubernetes') {
             steps {
-                withKubeConfig(caCertificate: '', clusterName: 'kastro-eks', contextName: '', credentialsId: 'k8-token', namespace: 'webapps', restrictKubeConfigAccess: false, serverUrl: 'https://A3A38B4561B8159534054B870C447E05.yl4.us-east-1.eks.amazonaws.com') {
-                    sh "kubectl apply -f deployment-service.yaml -n webapps"
+                sh '''
+                aws eks update-kubeconfig --name kastro-eks --region us-east-1
+                kubectl apply -f deployment-service.yaml -n webapps
+                '''
                 }
             }
         }
         stage('Verify the Deployment') {
             steps {
-                withKubeConfig(caCertificate: '', clusterName: 'kastro-eks', contextName: '', credentialsId: 'k8-token', namespace: 'webapps', restrictKubeConfigAccess: false, serverUrl: 'https://A3A38B4561B8159534054B870C447E05.yl4.us-east-1.eks.amazonaws.com') {
-                    sh "kubectl get pods -n webapps"
-                    sh "kubectl get svc -n webapps"
+                sh '''
+                aws eks update-kubeconfig --name kastro-eks --region us-east-1
+                kubectl get pods -n webapps
+                kubectl get svc -n webapps
+                '''
                 }
             }
         }
