@@ -95,7 +95,6 @@ pipeline {
                 script {
                     sh "docker stop ecommerce-container || true && docker rm ecommerce-container || true"
                     sh "docker run -d --name ecommerce-container -p 8083:8080 ${DOCKER_IMAGE}"
-                }
             }
         }
         stage('Deploy To Kubernetes') {
@@ -104,7 +103,6 @@ pipeline {
                 aws eks update-kubeconfig --name kastro-eks --region us-east-1
                 kubectl apply -f deployment-service.yaml -n webapps
                 '''
-                }
             }
         }
         stage('Verify the Deployment') {
@@ -114,7 +112,6 @@ pipeline {
                 kubectl get pods -n webapps
                 kubectl get svc -n webapps
                 '''
-                }
             }
         }
     }
