@@ -111,23 +111,25 @@ pipeline {
 
         stage('Deploy To Kubernetes') {
             steps {
-                sh '''
-                aws eks update-kubeconfig --name ${EKS_CLUSTER} --region ${AWS_REGION}
-                kubectl apply -f deployment-service.yaml -n webapps
-                '''
+                withAWS(credentials: 'aws-cred', region: 'us-east-1') {
+                    sh '''
+                        aws eks update-kubeconfig --name kastro-eks --region us-east-1
+                        kubectl apply -f deployment-service.yaml -n webapps
+                    '''
+                }
             }
         }
-
         stage('Verify the Deployment') {
             steps {
-                sh '''
-                aws eks update-kubeconfig --name ${EKS_CLUSTER} --region ${AWS_REGION}
-                kubectl get pods -n webapps
-                kubectl get svc -n webapps
-                '''
+                withAWS(credentials: 'aws-cred', region: 'us-east-1') {
+                    sh '''
+                        aws eks update-kubeconfig --name kastro-eks --region us-east-1
+                        kubectl get pods -n webapps
+                        kubectl get svc -n webapps
+                    '''
+                }
             }
         }
-    }
 
     post {
         always {
