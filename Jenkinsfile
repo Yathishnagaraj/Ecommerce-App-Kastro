@@ -9,9 +9,12 @@ pipeline {
     environment {
         SCANNER_HOME = tool 'sonar-scanner'
         DOCKER_IMAGE = "yathish047/ecommerce:latest"
+        AWS_REGION = "us-east-1"
+        EKS_CLUSTER = "kastro-eks"
     }
 
     stages {
+
         stage('Git Checkout') {
             steps {
                 git 'https://github.com/Yathishnagaraj/Ecommerce-App-Kastro.git'
@@ -20,19 +23,19 @@ pipeline {
 
         stage('Maven Compile') {
             steps {
-                sh "mvn compile"
+                sh 'mvn compile'
             }
         }
 
         stage('Maven Test') {
             steps {
-                sh "mvn test -DskipTests=true"
+                sh 'mvn test -DskipTests=true'
             }
         }
 
         stage('File System Scan') {
             steps {
-                sh "trivy fs --format table -o trivy-fs-report.html ."
+                sh 'trivy fs --format table -o trivy-fs-report.html .'
             }
         }
 
@@ -51,24 +54,26 @@ pipeline {
 
         stage('Maven Build') {
             steps {
-                sh "mvn package -DskipTests=true"
+                sh 'mvn package -DskipTests=true'
             }
         }
 
         stage('Publish to Nexus') {
             steps {
-                withMaven(globalMavenSettingsConfig: 'maven-setting', jdk: 'jdk17', maven: 'maven') {
-                    sh "mvn deploy -DskipTests=true"
+                withMaven(
+                    globalMavenSettingsConfig: 'maven-setting',
+                    jdk: 'jdk17',
+                    maven: 'maven'
+                ) {
+                    sh 'mvn deploy -DskipTests=true'
                 }
             }
         }
 
         stage('Docker Build & Tag') {
             steps {
-                script {
-                    withDockerRegistry(credentialsId: 'docker-cred') {
-                        sh "docker build -t ${DOCKER_IMAGE} ."
-                    }
+                withDockerRegistry(credentialsId: 'docker-cred') {
+                    sh "docker build -t ${DOCKER_IMAGE} ."
                 }
             }
         }
@@ -82,64 +87,66 @@ pipeline {
 
         stage('Push Docker Image') {
             steps {
-                script {
-                    withDockerRegistry(credentialsId: 'docker-cred') {
-                        sh "docker push ${DOCKER_IMAGE}"
-                    }
+                withDockerRegistry(credentialsId: 'docker-cred') {
+                    sh "docker push ${DOCKER_IMAGE}"
                 }
             }
         }
 
         stage('Deploy to Container') {
             steps {
-                script {
-                    sh "docker stop ecommerce-container || true && docker rm ecommerce-container || true"
-                    sh "docker run -d --name ecommerce-container -p 8083:8080 ${DOCKER_IMAGE}"
+                sh '''
+                docker stop ecommerce-container || true
+                docker rm ecommerce-container || true
+                docker run -d --name ecommerce-container -p 8083:8080 ${DOCKER_IMAGE}
+                '''
             }
         }
+
         stage('Deploy To Kubernetes') {
             steps {
                 sh '''
-                aws eks update-kubeconfig --name kastro-eks --region us-east-1
+                aws eks update-kubeconfig --name ${EKS_CLUSTER} --region ${AWS_REGION}
                 kubectl apply -f deployment-service.yaml -n webapps
                 '''
             }
         }
+
         stage('Verify the Deployment') {
             steps {
                 sh '''
-                aws eks update-kubeconfig --name kastro-eks --region us-east-1
+                aws eks update-kubeconfig --name ${EKS_CLUSTER} --region ${AWS_REGION}
                 kubectl get pods -n webapps
                 kubectl get svc -n webapps
                 '''
             }
         }
     }
-    
+
     post {
         always {
             script {
                 def jobName = env.JOB_NAME
                 def buildNumber = env.BUILD_NUMBER
                 def pipelineStatus = currentBuild.result ?: 'SUCCESS'
-                def bannerColor = pipelineStatus.toUpperCase() == 'SUCCESS' ? 'green' : 'red'
+                def bannerColor = pipelineStatus == 'SUCCESS' ? 'green' : 'red'
 
                 def body = """
                 <html>
                 <body>
                 <div style="border: 4px solid ${bannerColor}; padding: 10px;">
-                <h2>${jobName} - Build ${buildNumber}</h2>
-                <div style="background-color: ${bannerColor}; padding: 10px;">
-                <h3 style="color: white;">Pipeline Status: ${pipelineStatus.toUpperCase()}</h3>
-                </div>
-                <p>Check the <a href="${BUILD_URL}">console output</a>.</p>
+                    <h2>${jobName} - Build ${buildNumber}</h2>
+                    <div style="background-color: ${bannerColor}; padding: 10px;">
+                        <h3 style="color: white;">Pipeline Status: ${pipelineStatus}</h3>
+                    </div>
+                    <p>Check the <a href="${BUILD_URL}">console output</a>.</p>
                 </div>
                 </body>
                 </html>
                 """
 
-                emailext (
-                    subject: "${jobName} - Build ${buildNumber} - ${pipelineStatus.toUpperCase()}",
+                emailext(
+                    subject: "${jobName} - Build ${buildNumber} - ${pipelineStatus}",
                     body: body,
                     to: 'yathish25aws@gmail.com',
                     from: 'jenkins@example.com',
