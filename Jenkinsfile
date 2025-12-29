@@ -161,8 +161,7 @@ pipeline {
                     replyTo: 'jenkins@example.com',
                     mimeType: 'text/html',
                     attachmentsPattern: 'trivy-image-report.html'
-                    )
-                }
+                )
             }
         }
     }
