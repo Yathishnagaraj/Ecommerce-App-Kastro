@@ -72,7 +72,10 @@ pipeline {
 
         stage('Docker Build & Tag') {
             steps {
-                withDockerRegistry(credentialsId: 'docker-cred') {
+                withDockerRegistry(
+                    credentialsId: 'docker-cred',
+                    url: 'https://index.docker.io/v1/'
+                ) {
                     sh "docker build -t ${DOCKER_IMAGE} ."
                 }
             }
@@ -87,7 +90,10 @@ pipeline {
 
         stage('Push Docker Image') {
             steps {
-                withDockerRegistry(credentialsId: 'docker-cred') {
+                withDockerRegistry(
+                    credentialsId: 'docker-cred',
+                    url: 'https://index.docker.io/v1/'
+                ) {
                     sh "docker push ${DOCKER_IMAGE}"
                 }
             }
